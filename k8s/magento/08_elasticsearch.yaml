@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: magento
+spec:
+  selector:
+    matchLabels:
+      app: elasticsearch
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        k8s-app: magento
+    spec:
+      tolerations:
+      - key: "application"
+        operator: "Equal"
+        value: "general"
+        effect: "NoSchedule"
+      containers:
+      - image: elasticsearch:7.17.2
+        name: elasticsearch
+        env:
+        - name:  "discovery.type"
+          value: "single-node"
+        - name: ES_JAVA_OPTS
+          value: -Xms6g -Xmx6g
+        ports:
+        - containerPort: 9200
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 8Gi
+          requests:
+            cpu: 50m
+            memory: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: elasticsearch
+    k8s-app: magento
+  name: elasticsearch
+  namespace: magento
+spec:
+  ports:
+  - name: "9200"
+    port: 9200
+    protocol: TCP
+    targetPort: 9200
+  selector:
+    app: elasticsearch
+  type: ClusterIP

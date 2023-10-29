@@ -1,0 +1,89 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: magento-reindex
+  namespace: magento
+spec:
+  template:
+    metadata:
+      labels:
+        app: magento-reindex
+        k8s-app: magento
+      name: reindex
+    spec:
+      tolerations:
+      - key: "application"
+        operator: "Equal"
+        value: "general"
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+      - args:
+        - -c
+        - |
+          /bin/bash <<'EOF'
+          bin/magento indexer:reindex amasty_pgrid_qty_sold catalogrule_product catalogrule_rule catalogsearch_fulltext catalog_category_product customer_grid design_config_grid inventory catalog_product_category catalog_product_attribute catalog_product_price cataloginventory_stock
+          EOF
+        command:
+        - /bin/sh
+        envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: youracrnamespace.azurecr.io/youracrrepo/reponame:tag
+        imagePullPolicy: IfNotPresent
+        name: magento-setup
+        volumeMounts:
+        - mountPath: /var/www/html/var/log
+          name: magento-azurefile
+          subPath: var/log
+        - mountPath: /var/www/html/var/import
+          name: magento-azurefile
+          subPath: var/import
+        - mountPath: /var/www/html/pub/media
+          name: magento-azurefile
+          subPath: pub/media
+        - mountPath: /var/www/html/pub/static/_cache
+          name: magento-azurefile
+          subPath: pub/static/_cache
+      initContainers:
+      - args:
+        - -c
+        - |
+          while ! { echo -e '*1\r\n$4\r\nPING\r\n'; sleep 1; } | nc $(REDIS_CACHE_HOST) $(REDIS_CACHE_PORT)
+          do echo "waiting for $(REDIS_CACHE_HOST)"
+          sleep 1
+          done
+        command:
+        - /bin/sh
+        envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: busybox
+        name: wait-for-redis
+      - args:
+        - -c
+        - |
+          while ! curl -kILSs --fail -XGET \
+            $(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_HOSTNAME):$(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_PORT)
+          do echo "waiting for $(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_HOSTNAME):$(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_PORT)"
+          sleep 1
+          done
+        command:
+        - /bin/sh
+        envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: curlimages/curl
+        name: wait-for-elasticsearch
+      restartPolicy: OnFailure
+      volumes:
+      - name: magento-azurefile
+        persistentVolumeClaim:
+          claimName: magento-azurefile
+  ttlSecondsAfterFinished: 60

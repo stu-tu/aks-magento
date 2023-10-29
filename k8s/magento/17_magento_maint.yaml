@@ -1,0 +1,94 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: magento-cron-maint
+  namespace: magento
+spec:
+  schedule: '6 2,11 * * 1-6'
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      template:
+        metadata:
+          labels:
+            app: magento-cron-maint
+            k8s-app: magento
+        spec:
+          tolerations:
+          - key: "application"
+            operator: "Equal"
+            value: "general"
+          imagePullSecrets:
+            - name: acr-secret
+          containers:
+          - name: magento-cron-maint
+            command: ["/bin/sh"]
+            args:
+            - -c
+            - |
+              /bin/bash <<'EOF'
+              BAKUPPD="/var/www/html/var/import/backup/"
+              LOGFILEPD="/var/www/html/var/log"
+              RIGHT_NOW=$(date +"%m-%d-%y-%H-%M-%S")
+              DB_FILENAME=$BAKUPPD$DB_NAME.$RIGHT_NOW."sql.gz"
+
+              # Dump database
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Start to backup database..."
+              mysqldump --single-transaction --no-tablespaces -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME | gzip > $DB_FILENAME
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Database dumped at ".$DB_FILENAME
+              find $BAKUPPD -mtime +7 -type f -delete
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Backup files older than 7 days are deleted."
+
+              # Archive log files
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Start to archive log files."
+              cd $LOGFILEPD
+              logfiles=`ls *.log`
+              for logfile in $logfiles
+              do
+                tar czf $logfile.$RIGHT_NOW".tar.gz" $logfile
+                echo "" > $logfile
+              done
+              find $LOGFILEPD -mtime +7 -type f -delete
+              cd -
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Completed to archive log files."
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Start to clean sync log."
+              php bin/magento silk:cleanSyncLog
+              echo $(date +"%m-%d-%y-%H-%M-%S")" Completed to clean sync log."
+              EOF
+            envFrom:
+            - configMapRef:
+                name: core-config-data
+            - secretRef:
+                name: config-secret
+            image: youracrnamespace.azurecr.io/youracrrepo/reponame:tag
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - mountPath: /var/www/html/var/log
+              name: magento-azurefile
+              subPath: var/log
+            - mountPath: /var/www/html/var/import
+              name: magento-azurefile
+              subPath: var/import
+            - mountPath: /var/www/html/pub/media
+              name: magento-azurefile
+              subPath: pub/media
+            - mountPath: /var/www/html/pub/static/_cache
+              name: magento-azurefile
+              subPath: pub/static/_cache
+            resources:
+              limits:
+                cpu: 500m
+                memory: 4Gi
+              requests:
+                cpu: 50m
+                memory: 1Gi
+          restartPolicy: Never
+          volumes:
+          - name: magento-azurefile
+            persistentVolumeClaim:
+              claimName: magento-azurefile
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3

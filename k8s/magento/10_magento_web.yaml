@@ -1,0 +1,158 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: magento-web
+    k8s-app: magento
+  name: magento-web
+  namespace: magento
+spec:
+  selector:
+    matchLabels:
+      app: magento-web
+  template:
+    metadata:
+      labels:
+        app: magento-web
+        k8s-app: magento
+    spec:
+      tolerations:
+      - key: "application"
+        operator: "Equal"
+        value: "web"
+        effect: "NoSchedule"
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+      - envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: youracrnamespace.azurecr.io/youracrrepo/reponame:tag
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check.php
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 60
+        name: magento-web
+        ports:
+        - containerPort: 9000
+          protocol: TCP
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /health_check.php
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 60
+        resources:
+          limits:
+            cpu: 3800m
+            memory: 15Gi
+          requests:
+            cpu: 2500m
+            memory: 8192Mi
+        volumeMounts:
+        - mountPath: /var/www/html/var/log
+          name: magento-azurefile
+          subPath: var/log
+        - mountPath: /var/www/html/var/import
+          name: magento-azurefile
+          subPath: var/import
+        - mountPath: /var/www/html/pub/media
+          name: magento-azurefile
+          subPath: pub/media
+        - mountPath: /var/www/html/pub/static/_cache
+          name: magento-azurefile
+          subPath: pub/static/_cache
+        - mountPath: /usr/local/etc/php-fpm.d/zz-docker.conf
+          name: php-fpm-config
+          subPath: zz-docker.conf
+      initContainers:
+      - args:
+        - -c
+        - |
+          while ! { echo -e '*1\r\n$4\r\nPING\r\n'; sleep 1; } | nc $(REDIS_CACHE_HOST) $(REDIS_CACHE_PORT)
+          do echo "waiting for $(REDIS_CACHE_HOST)"
+          sleep 1
+          done
+        command:
+        - /bin/sh
+        envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: busybox
+        name: wait-for-redis
+      - args:
+        - -c
+        - |
+          while ! curl -kILSs --fail -XGET \
+            $(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_HOSTNAME):$(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_PORT)
+          do echo "waiting for $(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_HOSTNAME):$(CONFIG__DEFAULT__CATALOG__SEARCH__ELASTICSEARCH7_SERVER_PORT)"
+          sleep 1
+          done
+        command:
+        - /bin/sh
+        envFrom:
+        - configMapRef:
+            name: core-config-data
+        - secretRef:
+            name: config-secret
+        image: curlimages/curl
+        name: wait-for-elasticsearch
+      volumes:
+      - name: magento-azurefile
+        persistentVolumeClaim:
+          claimName: magento-azurefile
+      - configMap:
+          name: php-fpm-config-data
+        name: php-fpm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: magento-web
+    k8s-app: magento
+  name: magento-web
+  namespace: magento
+spec:
+  ports:
+  - name: fpm
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: magento-web
+---
+apiVersion: v1
+data:
+  zz-docker.conf: |
+    [global]
+    daemonize = no
+    [www]
+    listen = 9000
+    pm = static
+    pm.max_children = 60
+    pm.max_requests = 1000
+    request_terminate_timeout = 600s
+kind: ConfigMap
+metadata:
+  name: php-fpm-config-data
+  namespace: magento

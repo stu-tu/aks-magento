@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: magento-ingress
+  namespace: magento
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/backend-hostname: "www.magentoonaks.com"
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "yoursslcertname"
+    appgw.ingress.kubernetes.io/request-timeout: "660"
+spec:
+  tls:
+  - hosts:
+    - www.magentoonaks.com
+    secretName: yoursslcertname
+  rules:
+  - host: www.magentoonaks.com
+    http:
+      paths:
+          - backend: # How the ingress will handle the requests
+              service:
+              #  name: magento-web # Which service the request will be forwarded to
+               name: varnish # Which service the request will be forwarded to
+               port:
+                 name: proxy # Which port in that service
+            path: /  # Which path is this rule referring to
+            pathType: Prefix # See more at https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types

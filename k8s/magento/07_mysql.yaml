@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: magento
+spec:
+  selector:
+    matchLabels:
+      app: db
+  serviceName: db
+  template:
+    metadata:
+      labels:
+        app: db
+        k8s-app: magento
+    spec:
+      tolerations:
+      - key: "application"
+        operator: "Equal"
+        value: "mysql"
+        effect: "NoSchedule"
+      containers:
+      - args:
+        - --max_allowed_packet=134217728
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              key: DB_NAME
+              name: core-config-data
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_PASS
+              name: config-secret
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              key: DB_USER
+              name: core-config-data
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_ROOT_PASS
+              name: config-secret
+        image: mysql:8.0
+        imagePullPolicy: IfNotPresent
+        name: db
+        resources:
+          limits:
+            cpu: 8000m
+            memory: 32Gi
+          requests:
+            cpu: 2000m
+            memory: 20Gi
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: mysql-data
+        - mountPath: /etc/mysql/my.cnf
+          name: mycnf
+          subPath: my.cnf
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          name: mysql-config-data
+        name: mycnf
+      - name: mysql-data
+        persistentVolumeClaim:
+          claimName: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: db
+    k8s-app: magento
+  name: db
+  namespace: magento
+spec:
+  ports:
+  - name: db
+    port: 3306
+  selector:
+    app: db

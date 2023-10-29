@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: magento-cron
+  namespace: magento
+spec:
+  schedule: '* * * * *'
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      template:
+        metadata:
+          labels:
+            app: magento-cron
+            k8s-app: magento
+        spec:
+          tolerations:
+          - key: "application"
+            operator: "Equal"
+            value: "cron"
+            effect: "NoSchedule"
+          imagePullSecrets:
+            - name: acr-secret
+          containers:
+          - name: magento-cron
+            command: ["/bin/sh"]
+            args:
+            - -c
+            - |
+              php bin/magento cron:run
+            envFrom:
+            - configMapRef:
+                name: core-config-data
+            - secretRef:
+                name: config-secret
+            image: youracrnamespace.azurecr.io/youracrrepo/reponame:tag
+            imagePullPolicy: Always
+            volumeMounts:
+            - mountPath: /var/www/html/var/log
+              name: magento-azurefile
+              subPath: var/log
+            - mountPath: /var/www/html/var/import
+              name: magento-azurefile
+              subPath: var/import
+            - mountPath: /var/www/html/pub/media
+              name: magento-azurefile
+              subPath: pub/media
+            - mountPath: /var/www/html/pub/static/_cache
+              name: magento-azurefile
+              subPath: pub/static/_cache
+            resources:
+              limits:
+                cpu: 500m
+                memory: 4Gi
+              requests:
+                cpu: 50m
+                memory: 200Mi
+          restartPolicy: Never
+          volumes:
+          - name: magento-azurefile
+            persistentVolumeClaim:
+              claimName: magento-azurefile
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
