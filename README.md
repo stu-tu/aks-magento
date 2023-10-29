@@ -2,7 +2,7 @@
 
 - This article is to host the open-source version of Magento, an e-commerce platform written in PHP on AKS. 
 - It's the working version of AKS official example scenario [Magento e-commerce platform in Azure Kubernetes Service](https://learn.microsoft.com/en-us/azure/architecture/example-scenario/magento/magento-azure).
-- ***This setup has been proven in production that handles 6,000 orders a day.***
+- ***This setup has been proven in production that handles thousands orders a day. The AKS resources are scaling up and down based on the usage of the system.***
 
 ## Architecture
 
