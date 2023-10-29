@@ -214,7 +214,7 @@ Steps to setup the Magento 2 k8s YAMLs. This assumes you have an existing Magent
 ### 1. Create namespace
 
 - ```vim magento/01_namespace.yaml```
-- YAML: [magento/01_namespace.yaml](./magento/01_namespace.yaml)
+- YAML: [magento/01_namespace.yaml](./k8s/magento/01_namespace.yaml)
 - ```kubectl apply -f  magento/01_namespace.yaml```
 
 ### 2. Create secrets
@@ -227,7 +227,7 @@ echo -n 'secret0' | base64
 ```
 
 - ```vim magento/02_secret.yaml```
-- YAML: [magento/02_secret.yaml](./magento/02_secret.yaml)
+- YAML: [magento/02_secret.yaml](./k8s/magento/02_secret.yaml)
 
 SSL cert secrets
 
@@ -244,25 +244,25 @@ Update the cert yaml in magento/02_secret.yaml
 ### 3. Create core-config-data ConfigMap
 
 - ```vim magento/03_configmap_core-config-data.yaml```
-- YAML: [magento/03_configmap_core-config-data.yaml](./magento/03_configmap_core-config-data.yaml)
+- YAML: [magento/03_configmap_core-config-data.yaml](./k8s/magento/03_configmap_core-config-data.yaml)
 - ```kubectl apply -f magento/03_configmap_core-config-data.yaml```
 
 ### 4. Create mysql-config-data ConfigMap
 
 - ```vim magento/04_configmap_mysql-config-data.yaml```
-- YAML: [magento/04_configmap_mysql-config-data.yaml](./magento/04_configmap_mysql-config-data.yaml)
+- YAML: [magento/04_configmap_mysql-config-data.yaml](./k8s/magento/04_configmap_mysql-config-data.yaml)
 - ```kubectl apply -f magento/04_configmap_mysql-config-data.yaml```
 
 ### 5. Create varnish-config-data ConfigMap
 
 - ```vim magento/05_configmap_varnish-config-data.yaml```
-- YAML: [magento/05_configmap_varnish-config-data.yaml](./magento/05_configmap_varnish-config-data.yaml)
+- YAML: [magento/05_configmap_varnish-config-data.yaml](./k8s/magento/05_configmap_varnish-config-data.yaml)
 - ```kubectl apply -f magento/05_configmap_varnish-config-data.yaml```
 
 ### 6. Create Persistent Volume Claims
 
 - `vim magento/06_pvc.yaml`
-- YAML: [magento/06_pvc.yaml](./magento/06_pvc.yaml)
+- YAML: [magento/06_pvc.yaml](./k8s/magento/06_pvc.yaml)
 - `kubectl apply -f magento/06_pvc.yaml`
 
 mysql pvc will only be created when the db pod is starting to create.
@@ -270,32 +270,32 @@ mysql pvc will only be created when the db pod is starting to create.
 ### 7. Create MySQL database service and deployment
 
 - ```vim magento/07_mysql.yaml```
-- YAML: [magento/07_mysql.yaml](./magento/07_mysql.yaml)
+- YAML: [magento/07_mysql.yaml](./k8s/magento/07_mysql.yaml)
 - ```kubectl apply -f magento/07_mysql.yaml```
 
 ### 8. Create ElasticSearch service and deployment
 
 - ```vim magento/08_elasticsearch.yaml```
-- YAML: [magento/08_elasticsearch.yaml](./magento/08_elasticsearch.yaml)
+- YAML: [magento/08_elasticsearch.yaml](./k8s/magento/08_elasticsearch.yaml)
 - ```kubectl apply -f magento/08_elasticsearch.yaml```
 
 ### 9. Create Redis service and deployment
 
 - ```vim magento/09_redis.yaml```
-- YAML: [magento/09_redis.yaml](./magento/09_redis.yaml)
+- YAML: [magento/09_redis.yaml](./k8s/magento/09_redis.yaml)
 - ```kubectl apply -f magento/09_redis.yaml```
 
 ### 10. Create Magento Web (php and nginx) deployment
 
 - Make sure to update the `image`
 - ```vim magento/10_magento_web.yaml```
-- YAML: [magento/10_magento_web.yaml](./magento/10_magento_web.yaml)
+- YAML: [magento/10_magento_web.yaml](./k8s/magento/10_magento_web.yaml)
 - ```kubectl apply -f magento/10_magento_web.yaml```
 
 ### 11. Create Varnish service and deployment
 
 - ```vim magento/11_varnis.yaml```
-- YAML: [magento/11_varnis.yaml](./magento/11_varnis.yaml)
+- YAML: [magento/11_varnis.yaml](./k8s/magento/11_varnis.yaml)
 - ```kubectl apply -f magento/11_varnish.yaml```
 
 ### 14. Create ClusterIssuer and Ingress
@@ -307,7 +307,7 @@ az network application-gateway ssl-cert create -g $AKS_NODE_RESOURCE_GROUP --gat
 ```
 
 - ```vim magento/12_ingress.yaml```
-- YAML: [magento/12_ingress.yaml](./magento/12_ingress.yaml)
+- YAML: [magento/12_ingress.yaml](./k8s/magento/12_ingress.yaml)
 - ```kubectl apply -f magento/12_ingress.yaml```
 
 ### 12. SSH into the magento-web pod to import the database from your existing Magento installation
@@ -319,13 +319,13 @@ mysql -hdb -umagento -p magento < aks_magento.sql
 ### 15. Deploy upgrade job
 
 - ```vim magento/13_upgrade_job.yaml```
-- YAML: [magento/13_upgrade_job.yaml](./magento/13_upgrade_job.yaml)
+- YAML: [magento/13_upgrade_job.yaml](./k8s/magento/13_upgrade_job.yaml)
 - ```kubectl apply -f magento/13_upgrade_job.yaml```
 
 ### 16. Auto scaling magento-web
 
 - ```vim magento/14_autoscaling_magento_web.yaml```
-- YAML: [magento/14_autoscaling_magento_web.yaml](./magento/14_autoscaling_magento_web.yaml)
+- YAML: [magento/14_autoscaling_magento_web.yaml](./k8s/magento/14_autoscaling_magento_web.yaml)
 - ```kubectl apply -f magento/14_autoscaling_magento_web.yaml```
 
 ## DevOps
